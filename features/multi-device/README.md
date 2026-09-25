@@ -71,6 +71,41 @@ work. Do not interpret a checked-in plan, an approved review, or a merged docume
   already holds a cloned leaf secret can impersonate that leaf. Do not promise clone detection or selective revocation
   of only one physical copy; [diagram 5](flows-and-threats.md#5-two-clients-share-one-leafs-private-state) explains recovery.
 
+## Compatibility and coordinated upgrades
+
+This plan changes no running client. The released compatibility baseline is MDK `v0.10.4`, checked on 2026-09-25;
+the [evidence register](discussion-register.md#pinned-sources) pins its source and the Marmot spec revision. No released
+version is identified here as multi-device-capable. P1/M8 must name and test the first supporting releases before rollout.
+
+| Boundary | Required behavior |
+| --- | --- |
+| Feature absent from a group | Upgraded clients continue interoperating with the released baseline. Preserve ordinary invitations, authorization, Commit priority, replay and unknown optional data. Do not apply the new sibling authority or five-leaf cap globally. |
+| Enablement in an existing group | Coordinate upgrades of every current member leaf across all accounts, not just sponsor and joiner. Each upgraded member must publish its support in an accepted own-leaf update; installing a binary or publishing a new KeyPackage alone does not update existing membership. A leaf without that support blocks enablement even while offline; do not evict it automatically. Already-supporting members need not be online simultaneously. |
+| Creation or admission into an enabled group | Every founding or later member must support the required component. Baseline clients cannot join; keep groups that need them on the existing feature set. |
+| Pairing | Sponsor and joiner must use compatible approved pairing and carrier versions as well as supporting the group feature. An unamended #417 pairing implementation is not presumed compatible with the amended transcript, receipts or ack kind. |
+| Rollback | Stop new enrollment while retaining support for enabled groups, retained branches and recovery obligations. Removing the group requirement first needs at most one leaf per account; it does not by itself make an older binary or database downgrade safe. |
+
+There is also an account-wide operational boundary outside group negotiation: baseline MDK sign-out/wipe can delete a
+sibling's public KeyPackages. M1 cannot change an older installation's behavior. Before an account enters the pilot,
+upgrade all its known installations to builds with device-scoped cleanup, including installations outside the target
+group. Upgrade before using old sign-out/wipe as a retirement step. Unknown installations remain a documented risk to
+future invitation delivery; neither group capability negotiation nor relay discovery proves they are absent.
+
+Version pins belong at these existing gates:
+
+| Stage | What to pin or coordinate |
+| --- | --- |
+| P1 / G0 | Record the released MDK and actual client builds used as compatibility controls; retain `v0.10.4` as this review's baseline and add newer releases explicitly. |
+| P5 / G1 | Pin the amended Marmot revision, allocated identifiers, pairing/carrier versions and fixture revision before implementation claims interoperability. |
+| M1–M8 / G2–G4 | Pin each candidate client's MDK dependency and matching native libraries, generated bindings/headers and storage migration version. Run the mixed-version cases against the released controls. |
+| M8 / G4, then R1 | Publish the tested minimum and allowed builds for each client family/platform, including the M1 cleanup fix. Coordinate account installations and all group members, observe their signed capability updates, then let an admin explicitly enable the group before pairing. |
+| R1 / G5 and later updates | Keep pilot builds pinned until replacement builds pass the compatibility matrix. A rollback target must retain required feature and storage support; do not fall back to `v0.10.4` for enabled groups. |
+
+Different clients need compatible protocol support, not identical app version numbers. The release matrix records which
+build combinations have been tested; signed capabilities establish member support, and an admin authorizes enablement.
+Neither a version label nor a single-client test substitutes for
+[mixed-version validation](validation-and-rollout.md#mixed-version-compatibility).
+
 ## Decisions before wire freeze
 
 The architecture is the recommended direction; the following choices still require explicit recorded conclusions.
@@ -123,8 +158,8 @@ to normal user groups. Cross-package parallel work needs agreed interfaces from 
 | G0: design ready | D1–D6 recorded, stale descriptions mapped, scope and residual risks acknowledged |
 | G1: spec ready | Correct canonical bytes, complete transition/authority rules, fixtures and independent review; registry consistency |
 | G2: engine ready | Send/ingest/replay parity, exact leaf authority, atomic persistence, no premature capability advertising |
-| G3: integration ready | Durable publication/recovery, bounded pairing/carrier, two codecs, fault matrix and compatible routing |
-| G4: pilot ready | Native bindings/platform journeys, truthful UI, narrow LAN policy if used, security review |
+| G3: integration ready | Durable publication/recovery, bounded pairing/carrier, two codecs, fault matrix, compatible routing and released-baseline interoperability |
+| G4: pilot ready | Native bindings/platform journeys, tested client version matrix and coordinated upgrade path, truthful UI, narrow LAN policy if used, security review |
 | G5: release ready | Pilot evidence, documented limitations, release/integration notes and safe rollback procedure |
 
 Review focus maps to explicit cases in [validation](validation-and-rollout.md):

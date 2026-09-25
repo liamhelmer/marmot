@@ -140,6 +140,20 @@ peer-side rejection separately from joiner reliance on sponsor-attested state, a
 | F05 | Swift/Kotlin/C calls remove-device and remove-account | Distinct scope and stale-target result survive binding conversion |
 | F06 | No local account signer, external signer unavailable, permission denied or QR expired | Actionable typed outcome; no secret transfer or infinite spinner |
 
+## Mixed-version compatibility
+
+These cases gate G3/G4 and later additions to the supported client matrix. Use the actual pinned released MDK/client
+builds alongside the candidate implementation, not only two instances of the new implementation with flags changed.
+Start with MDK `v0.10.4`; record exact source/artifact revisions and add subsequent released controls through P1.
+
+| ID | Scenario | Required evidence | Owner |
+| --- | --- | --- | --- |
+| K01 | Released and upgraded clients share a group without the feature | Ordinary messaging, invitations, admin Add/Remove, SelfRemove, capability advertisements, unknown optional data and fork replay preserve valid baseline outcomes and Commit ordering; no global sibling authority/cap | M2/V1 |
+| K02 | Enable with a current leaf lacking support, including an offline old client; then upgrade and publish own-leaf support | First attempt leaves the group unchanged; binary/new-KeyPackage update alone is insufficient; accepted support from all current leaves permits explicit admin enablement without requiring all to be online together | P3/M2/M8 |
+| K03 | Old client joins an enabled group or pairs with an incompatible channel version | Unsupported capability/version fails closed without mutating existing membership or silently falling back; approved sponsor/joiner combinations succeed | M5/M7/M8 |
+| K04 | Old same-account installation signs out/wipes while another has public KeyPackages; repeat with M1-capable builds | Reproduce old deletion exposure even without group enablement; upgraded cleanup preserves sibling publications; rollout does not claim new clients can constrain unknown old installations | M1/M8 |
+| K05 | Upgrade/restart and rollback with enabled groups, retained branches, pending recovery and migrated storage | Matching bindings/native artifacts work; supported rollback disables new enrollment while retaining required processing; removing the group requirement alone does not authorize binary/database downgrade | M4/M6/M8/R1 |
+
 ## Verification commands
 
 For this documentation-only plan: run `git diff --check`, verify all new relative links, and review the repository's
@@ -180,6 +194,10 @@ to each implementation PR. Do not describe isolated reruns as a clean first full
 
 - [ ] Run an opt-in pilot only after G4. Pin Marmot/MDK/client revisions, channel/carrier version, component support and
   allowed platform combinations. Keep unsupported pairs disabled with a clear outcome.
+- [ ] Follow the [version gates and upgrade sequence](README.md#compatibility-and-coordinated-upgrades): upgrade the
+  account's known installations past the M1 cleanup boundary, upgrade every current group member to an approved build,
+  observe accepted own-leaf capability updates, then explicitly enable the group. Keep old-client groups disabled.
+  Attach K01–K05 results and the minimum/allowed build matrix; retest before expanding that matrix or replacing pilot pins.
 - [ ] Demonstrate two devices of one account and another observing account: enroll selected groups, send both directions,
   restart each side at durable boundaries, lose/recover acks, remove one sibling, and keep the other account unaffected.
 - [ ] Exercise empty catalog, more than 32 groups in batches, cap overflow, old client in group, partial success, no

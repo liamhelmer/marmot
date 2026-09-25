@@ -165,6 +165,9 @@ an amended proposal revision, and a migration/terminology table.
 
 - [ ] Pin current upstream heads, #417 head, supported MDK/client versions and all referenced issue states. Preserve
   the reviewed baselines so changed conclusions can be explained without silently replacing evidence.
+- [ ] Record the [compatibility boundaries and version gates](README.md#compatibility-and-coordinated-upgrades), starting
+  with released MDK `v0.10.4` and named client builds as controls. Keep new authorization/cap rules behind negotiated
+  enablement; any change to valid baseline acceptance or branch ordering needs separate compatibility/version review.
 - [ ] Inventory the older live draft on pinned master: `0x800a`, kind `452`, `0xf2f0`/`0xf2ef`, External Commit admission,
   join PSK and group-event-key transfer. Record them as superseded by this plan, not already withdrawn on master. The
   adoption change must mark them withdrawn in `foundation/registries.md`, `features/multi-device.md` and

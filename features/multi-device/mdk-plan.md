@@ -53,6 +53,9 @@ full protocol bytes or internal database paths through UI status objects.
 - [ ] On sign-out/wipe, delete only locally owned publications. Prepare and persist exact signed deletion events and
   per-target obligations in lifecycle storage that survives account-directory/key deletion. Retry those exact events
   after restart without invoking a removed/external signer. Report unsigned failures separately from queued publication.
+- [ ] Record the first client releases carrying this cleanup fix. An older same-account installation can still delete
+  sibling publications even outside an enabled group; require the account-installation upgrade step from the overview
+  before pilot enrollment, and demonstrate the residual old-client behavior in K04.
 - [ ] Preserve prior unconsumed private material only for its documented delayed-Welcome lifetime. Expiry/consumption
   retirement does not delete another device's publication. Never infer account-wide revocation from device cleanup.
 - [ ] Add multi-slot evidence after collapsing addressable-slot replacements. Multiple current unexplained slots produce
@@ -80,6 +83,10 @@ capability handling and disband validation; proposed focused `same_account_membe
   against the candidate parent, returning the highest independently valid priority. A valid admin narrow Add/Remove is
   privileged without padding or referenced proposals. Invalid MLS/proofs/resulting state fail regardless of actor; admin
   status alone does not elevate self-update/SelfRemove or authorize a shape baseline admin rules prohibit.
+- [ ] Keep valid baseline authorization and ordering unchanged when the feature is absent, including retained-branch
+  replay. Evaluate new sibling authority against the candidate parent's negotiated feature; enforce the cap in enabled
+  resulting state, including at enablement. Test K01 against the released implementation; review any broader validation
+  repair separately for changes to accepted historical state.
 - [ ] Run resulting-state integrity checks for every locally generated Commit, including invitation without admin grants,
   removal, self-update, capability updates and disband-related paths. Add the new invariant hook to all receive/replay paths.
 - [ ] Register `0x800d` as known and data-less, reject data entries in every location and validate support/required lists
@@ -275,6 +282,11 @@ client feature code in their own repositories. **Consumes:** M1–M7. **Produces
   ordering, replay after subscription/restart, and when cancellation leaves remote work pending.
 - [ ] Provide group opt-in and capability status. An upgraded binary may support the feature while a group remains
   disabled; an unsupported member blocks enablement without being evicted. Disabling rejects multi-leaf resulting state.
+- [ ] Publish the tested client/MDK version matrix and coordinate the overview's upgrade sequence. Show which current
+  leaves still need a supporting build and accepted capability update, including offline members and other accounts.
+  Keep enrollment unavailable until explicit group enablement; new KeyPackages alone do not upgrade existing leaves.
+- [ ] Pin native libraries and generated bindings/headers to a matching release, document storage migration/downgrade
+  limits, and test released-baseline combinations before adding a client build to the pilot matrix.
 - [ ] Replace the unconditional `MultiDeviceUnsupported` message only for supported workflows. Preserve notices that
   existing ineligible groups do not join, history is absent, future initial invitations still select one device, and a
   signer/account must already be available. Pairing is not full account migration or recovery from losing all devices.

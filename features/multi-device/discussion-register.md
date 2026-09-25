@@ -12,7 +12,15 @@ reviews and do not establish maintainer consensus.
 | [Marmot #417](https://github.com/marmot-protocol/marmot/pull/417) | `994ba06878d7093e7ba2cf7f6c34b2fe37bc043b`; open, unmerged reviewed proposal |
 | [MDK implementation inspected](https://github.com/marmot-protocol/mdk/tree/31a3722577805b49925142069f98037c9e75d6a2) | `31a3722577805b49925142069f98037c9e75d6a2`; file/line evidence in earlier review |
 | MDK live master observed during review | `9d87fe1f1f7217c0e38e7bba2343220322cd78fc`; not substituted for the pinned code audit |
+| [MDK v0.10.4 release](https://github.com/marmot-protocol/mdk/releases/tag/v0.10.4) | Released 2026-09-20; source `fcc85edd8dbd07c8293c899ee52230f72c54c897`. Stable compatibility baseline checked 2026-09-25; supporting multi-device client releases remain to be named at G4. |
 | Local input reviews | `multi-device-path-forward.md`, `astra-path-forward.md`, `fable-path-forward.md`; findings incorporated here, not required checkout dependencies |
+
+The released-baseline compatibility check inspected v0.10.4's
+[authorization/ordering classifier](https://github.com/marmot-protocol/mdk/blob/fcc85edd8dbd07c8293c899ee52230f72c54c897/crates/cgka-engine/src/app_components.rs#L1410),
+[Welcome capability/admin checks](https://github.com/marmot-protocol/mdk/blob/fcc85edd8dbd07c8293c899ee52230f72c54c897/crates/cgka-engine/src/group_lifecycle.rs#L1283),
+and [account-wide sign-out cleanup](https://github.com/marmot-protocol/mdk/blob/fcc85edd8dbd07c8293c899ee52230f72c54c897/crates/marmot-app/src/runtime/mod.rs#L3698).
+This was source inspection, not an interoperability test. The overview records the compatibility boundaries; K01–K05
+provide the required future release evidence without replacing the earlier implementation audit.
 
 ## Current design agreement and unresolved objections
 
