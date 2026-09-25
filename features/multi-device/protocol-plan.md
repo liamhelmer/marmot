@@ -6,7 +6,7 @@ to propose and verify, not newly adopted Marmot rules. Proposed type/record name
 ## Source and ownership map
 
 Use [#417 at the reviewed revision][feature] for the starting proposal. Some named files exist only on that branch;
-do not mistake their absence on master for permission to recreate the withdrawn draft.
+do not mistake their absence on master for endorsement of its older draft. P1/P5 explicitly withdraw that draft on adoption.
 
 | Surface | Existing/proposed owning files | Change responsibility |
 | --- | --- | --- |
@@ -29,7 +29,7 @@ Do not move network endpoints into protocol-core or invent component-data for a 
 
 ## Decision gates
 
-### D1: forward secrecy and the channel payload boundary
+### D1: authentication, forward secrecy and the channel payload boundary
 
 Owner: protocol/security with Android, Apple, and desktop maintainers. Evidence: the
 [Aug. 25 #417 review][review-objections] and [subsequent review][review-followup].
@@ -39,15 +39,29 @@ Owner: protocol/security with Android, Apple, and desktop maintainers. Evidence:
   and license/support considerations. A generic claim that Noise is large is insufficient evidence.
 - [ ] Describe QR capture during pairing, later QR-secret recovery, active carrier alteration, account-key compromise,
   external-signer authorization, and memory capture separately. State what each permits and what remains MLS-protected.
-- [ ] Recommend PSK-only v1 only with explicit acceptance that recovering the QR secret exposes recorded enrollment
-  metadata. Restrict plaintext types to the defined enrollment controls: catalog IDs, selections, public KeyPackages,
-  intents, approvals/receipts, and bounded reconciliation controls. No messages, drafts, attachments, archive sections,
-  account secrets, group-event keys, or MLS state.
-- [ ] If DH is selected before initial adoption, revise the entire transcript and fixtures: both ephemeral keys, roles,
-  session/account binding, nonces, descriptor and negotiated version are authenticated; validate peer keys/shared secret
-  and erase ephemeral private material. The previous one-sided DH mix-in does not bind the joiner key sufficiently.
+- [ ] Treat active QR capture as an enrollment-integrity attack, not only later metadata disclosure. A QR-secret holder
+  on the carrier path can derive PSK-only record keys, alter approvals/intents/receipts and substitute a valid same-account
+  KeyPackage whose private material it holds. Joiner-local package purpose cannot let the sponsor detect substitution.
+  Recommend authenticated ephemeral DH on this evidence. Unmodified PSK-only cannot pass D1/G1; any retained PSK option
+  needs independently authenticated package-hash commitments and receipts bound to the complete session transcript under
+  a key the QR-only attacker lacks. A signature by the substituted package's own key alone is insufficient: an attacker
+  holding an old device key could make it. Specify how that key is authorized by the authenticated joining proof, and
+  protect approval/intent integrity as well. Record remaining QR-compromise exposure explicitly.
+- [ ] Require exact proof-domain, role, account, session and transcript validation for every channel option. #417 already
+  separates sponsor and joining-device kind-453 templates; preserve those checks and test reflection in both directions.
+  The descriptor proof binds the descriptor; the Hello proof binds it and the joiner's fresh contribution. Authenticate
+  the complete negotiated transcript in the sponsor's post-Hello approval before accepting catalog data; an initial QR
+  signature cannot cover a later joiner nonce. Define exact signed bytes and transcript stages without circular hashes.
+- [ ] For the recommended DH construction, authenticate both ephemeral keys, roles, session/account binding, nonces,
+  descriptor and negotiated version through these proofs and final approval; validate peer keys/shared secret and erase
+  ephemeral private material. The previous one-sided DH mix-in does not bind the joiner key sufficiently. A QR holder
+  without account-signing or endpoint secrets must not forge records or replace either key in a relayed honest handshake.
+- [ ] Restrict plaintext types to catalog IDs, selections, public KeyPackages, intents, approvals/receipts, and bounded
+  reconciliation controls. No messages, drafts, attachments, archive sections, account secrets, group-event keys or MLS
+  state. PSK-only also exposes recorded enrollment metadata on later QR-secret recovery; DH does not repair compromised
+  account authority or endpoints, and neither construction prevents carrier denial of service.
 - [ ] Record the decision and reviewer rationale. Any later incompatible channel construction uses a new version;
-  future history transfer needs a separately reviewed forward-secret channel, not this v1 PSK payload extension.
+  future history transfer needs a separately reviewed forward-secret channel and content policy of its own.
 
 **Exit:** explicit security acceptance and platform comparison linked from the owning proposal. A brief approval marker
 does not substitute for a recorded response to the earlier concerns.
@@ -123,7 +137,10 @@ ack wire message without defining its authorization, persistence and race behavi
   The proof is an authenticated assertion under the joiner's honest durable-state behavior, not cryptographic proof
   that a malicious original client erased every copy or cannot later equivocate. Explain that limit with the clone case.
 - [ ] Record a terminal refusal durably on the joiner before declaring it to the sponsor; it prevents subsequent joining
-  through that attempt. Refusal after successful join becomes a removal request, not a retroactive claim that no join occurred.
+  through that attempt. Reserve refusal proofs for attempts that never joined. After joining, use the existing
+  [SelfRemove flow](../../protocol-core/member-departure.md) when authorized, retaining successful-join history. Active
+  admins must follow that flow's admin-policy prerequisites or request an independently authorized exact-leaf removal;
+  do not add a reconciliation message or bypass the admin/last-admin constraints to leave.
 - [ ] Separate terminal *admission* from group *cleanup*: a refusal does not undo an exposed Add. Cleanup is a new
   authorized Remove with its own publication and branch-relative outcome.
 - [ ] Leave unreachable peers in a truthful uncertain state. Stopping retries is finite; determining remote failure is
@@ -134,8 +151,11 @@ ack wire message without defining its authorization, persistence and race behavi
 ### D6: admin precedence
 
 Owner: protocol/MLS. Adopt the P3 matrix after checking every owning document, particularly the ordinary admin-policy
-rules. A narrow component denial is not automatically denial of an independently authorized admin operation; conversely
-admin status does not elevate a valid narrow same-account operation's priority or bypass resulting-state invariants.
+rules. Evaluate every applicable authority against the candidate parent and use the highest priority that valid authority
+grants. A narrow shape does not suppress independently valid admin membership authority, and padding/reference form must
+not be needed to obtain it. Preserve dedicated self-update/SelfRemove priority; admin status alone does not reclassify
+those operations or bypass resulting-state invariants. Admin authority is account-scoped: a compromised sibling of an
+admin account has it too. This rule does not promise the healthy sibling wins that race.
 
 ## P1: reconcile the design record
 
@@ -145,6 +165,11 @@ an amended proposal revision, and a migration/terminology table.
 
 - [ ] Pin current upstream heads, #417 head, supported MDK/client versions and all referenced issue states. Preserve
   the reviewed baselines so changed conclusions can be explained without silently replacing evidence.
+- [ ] Inventory the older live draft on pinned master: `0x800a`, kind `452`, `0xf2f0`/`0xf2ef`, External Commit admission,
+  join PSK and group-event-key transfer. Record them as superseded by this plan, not already withdrawn on master. The
+  adoption change must mark them withdrawn in `foundation/registries.md`, `features/multi-device.md` and
+  `app-components/multi-device-join-authorization-v1.md`, with matching indexes/references. Preserve ID tombstones and
+  historical meanings; do not withdraw shared MLS External Commit/PSK primitives or adopted kind `450`/`451` proofs.
 - [ ] Reconcile MDK #1518's one-to-four Adds, separate capabilities, joiner-displayed QR, DH handshake, admin fallback,
   and incorrect losing-Welcome leaf-count explanation with the amended proposal. Clearly label abandoned alternatives.
 - [ ] Record #1275/#1276 as historical design inputs where they require External Commits or old payloads. Record #1282
@@ -155,8 +180,8 @@ an amended proposal revision, and a migration/terminology table.
   rollback exposure is inherited; the ability of a compromised non-admin sibling to remove healthy siblings is still a
   feature-specific threat that the pilot must explain and test.
 
-**Validation:** each disagreement in the discussion register maps to a decision/task; no stale document claims the
-withdrawn design is current. **Commit boundary:** non-normative reconciliation/decision record before protocol adoption.
+**Validation:** each disagreement maps to a decision/task, and P5 tracks every still-live legacy reference for withdrawal
+at adoption. **Commit boundary:** non-normative reconciliation/decision record before protocol adoption.
 
 ## P2: encoding and pairing control ordering
 
@@ -173,6 +198,9 @@ withdrawn design is current. **Commit boundary:** non-normative reconciliation/d
   approved intent hashes bound to the current authenticated session. Define ordering and duplicate rejection in the
   encoding owner; use lexicographic hash order for this proposed set representation. Emit only after durable approval.
   The sponsor records the receipt idempotently and publishes no Add lacking its matching durable receipt.
+- [ ] Bind offered package hashes and receipt/intent correlation to the D1-authenticated transcript. Define the DH
+  approval/key-confirmation bytes, or the independently authenticated commitments required for a PSK alternative, in
+  the encoding owner and fixtures. Valid AEAD under a QR-derived key alone does not meet this requirement.
 - [ ] Resolve the earlier approval ordering separately. Preferred minimal change: the sponsor may send catalog objects
   after sending approval; the joiner does not accept/act on any object until approval authenticates and verifies. Define
   bounded buffering of early records within M7's budget, or an explicit retransmission behavior if buffering is refused.
@@ -188,8 +216,9 @@ withdrawn design is current. **Commit boundary:** non-normative reconciliation/d
 - [ ] Keep runtime elapsed deadlines monotonic. Validate signed Unix expiry separately with explicit clock-skew policy;
   clock correction cannot extend in-process TTL. Restart destroys channel secrets and requires fresh authentication.
 
-**Validation:** W01–W07 and C01–C06, including 32/33-entry boundaries, zero catalog, approval reorder, lost receipt and
-restart. **Commit boundary:** byte rules and fixtures together; no allocated identifiers with incomplete state semantics.
+**Validation:** W01–W08 and C01–C06, including 32/33-entry boundaries, empty non-final catalog rejection, approval reorder,
+lost receipt and restart. **Commit boundary:** byte rules and fixtures together; no allocated identifiers with incomplete
+state semantics.
 
 ## P3: component lifecycle and complete authorization
 
@@ -210,8 +239,9 @@ restart. **Commit boundary:** byte rules and fixtures together; no allocated ide
 
 | Candidate | Authority/result under proposed clarified rules | Priority |
 | --- | --- | --- |
-| Enabled parent; exact valid same-account one-Add shape | Current sponsor leaf; admin status immaterial | Ordinary |
-| Enabled parent; exact valid same-account sibling-Remove shape | Current same-account leaf; admin status immaterial | Ordinary |
+| Enabled parent; exact valid same-account one-Add shape; no independent admin authority | Current sponsor leaf | Ordinary |
+| Enabled parent; exact valid same-account sibling-Remove shape; no independent admin authority | Current same-account leaf | Ordinary |
+| Either exact narrow membership shape also independently authorized by admin policy | Evaluate both authorities; retain the higher valid priority | Privileged |
 | Non-admin mixed, referenced, wrong-account or otherwise non-qualifying operation | No authority from this component; reject unless a separate existing narrow rule applies | None |
 | Admin removes sibling plus another account's leaf, using ordinary valid admin operation | Evaluate ordinary admin authority independently | Privileged |
 | Admin mixed/referenced operation otherwise permitted by baseline admin rules | Not authorized by the same-account exception; may pass ordinary admin validation | Privileged |
@@ -232,51 +262,77 @@ transitions. **Commit boundary:** matrix, component/core/admin text and matching
 
 Retain or reconstruct: account/group and session/attempt identity, approved intent/hash/deadline, exact package reference,
 sponsor leaf binding, receipt, exact staged Commit and publication exposure, exact Welcome/GroupInfo digests, join fact,
-acknowledgement obligation/evidence, added leaf lineage, local key availability, selected membership and branch eligibility.
+acknowledgement obligation/evidence and recovery budget, added leaf lineage, local key availability, selected membership
+and branch eligibility. The intent deadline bounds the sponsor's first Add exposure, not first Welcome admission.
 Keep cleanup publication separate from terminal admission. A received ack remains historical evidence if membership later
 loses selection; do not overwrite it with a misleading never-joined state.
 
-| Trigger | Durable action and resulting status | Permitted next operation |
-| --- | --- | --- |
-| Package created | Persist private bundle plus enrollment-only purpose before exposure | Send its public bytes for the named group/session |
-| Valid intent approved | Persist exact approval/deadline | Emit receipt; sponsor records it before Add |
-| Intent expires/cancels before any Commit exposure | Retire admission, delete disposable secrets when safe, retain rejection metadata | Fresh session/package; no old Welcome admin fallback |
-| Add staged but definitely not exposed | Apply existing safe staged-operation cancellation/rollback | Fresh work after rollback; no claim that ambiguous publication was cancelled |
-| Add may have reached any peer | Preserve exact bytes and durable correlation; publication pending/uncertain | Reconcile/retry exact operation; do not create another Add |
-| Published Add, first matching Welcome before deadline | Atomically validate/join, retain digests, record ack obligation | Ack before other outbound application traffic or own update |
-| Matching Welcome after deadline with no previous successful join | Reject; persist refusal for later authenticated reconciliation | No admin fallback, no implicit cleanup inferred at sponsor |
-| Successful join, byte-identical Welcome replay after deadline | Recognize durable success before expiry/generic dedup exits | Fresh ack from exact authorized lineage; do not consume package again |
-| Same package reference, changed Welcome bytes | Reject without mutation | Retain legitimate receipt/record |
-| Ack absent after retry budget | Published-but-unacknowledged | Stop automatic retries; preserve bounded recoverable evidence |
-| Fresh reconciliation with original-joiner proof establishes durable refusal, including lost init material | Record durable admission terminality, separate cleanup-needed fact | Authorized sponsor/admin cleanup of exact still-current leaf |
-| Peer claims full state loss and cannot prove original-joiner identity | Retain uncertainty; account equality alone proves no terminal fact | Explicit separately authorized removal if user chooses; no automatic failure cleanup |
-| Cleanup is published/selected | Record branch-relative removal evidence | Re-evaluate eligibility and cap before another enrollment |
-| Enrollment loses current selection but remains eligible | Record not-selected/retry-blocked, retain recovery state | No replacement Add merely because this pass was lost |
-| Old branch becomes permanently ineligible under core rules | Record evidence and retire obsolete attempt safely | Fresh approved session/package; explicit discard/rejoin if locally retained |
-| Old branch revives | Recompute exact usable membership and obligations from that branch | Resume only if keys/lineage are usable; otherwise explicit stale-leaf cleanup/recovery |
-| Group discarded/deleted, leaf removed, or record invalidated | Revoke pending ack authority for that lineage | No replay ack; fresh authorized recovery where available |
+| Observer / actor | Trigger | Durable action and resulting status | Permitted next operation |
+| --- | --- | --- | --- |
+| Joiner | Package created | Persist private bundle plus enrollment-only purpose before exposure | Send its public bytes for the named group/session |
+| Joiner; sponsor on receipt | Valid intent approved | Joiner persists exact approval/deadline; sponsor persists authenticated receipt | Emit receipt; sponsor records it before Add |
+| Sponsor | Deadline/cancellation before any Commit exposure, including staged Add | Record definitely-not-exposed outcome and apply safe staged rollback | Fresh work after rollback; reconcile retirement with joiner; no claim ambiguous exposure was cancelled |
+| Joiner | Deadline passes without a known terminal outcome | Retain approval and package secret within explicit retention bounds; no inference about sponsor exposure | Accept a later matching Welcome while attempt is live; fresh pairing can reconcile |
+| Joiner | Explicit cancellation/refusal before successful join | Atomically retain terminal rejection metadata; retire secrets when safe | Prove refusal in fresh reconciliation; warn that an exposed Add may need cleanup |
+| Sponsor | Add may have reached any peer | Preserve exact bytes and durable correlation; publication pending/uncertain | Reconcile/retry exact operation; do not create another Add |
+| Joiner | First matching Welcome, including after exposure deadline, with live approval and package secret | Atomically validate/join, retain digests, record ack obligation | Ack before other outbound application traffic or own update |
+| Joiner | First Welcome after durable refusal/cancellation or secret retirement | Reject under enrollment-purpose rules | No admin fallback; reconcile without asserting sponsor already knows refusal |
+| Joiner | Successful join, byte-identical Welcome replay | Recognize durable success before generic dedup; coalesce pending ack work | At most one recovery ack per attempt/branch/epoch from valid lineage; never re-consume package |
+| Joiner | Same package reference, changed Welcome bytes | Reject without mutation | Retain legitimate receipt/record |
+| Sponsor | Ack absent after retry budget, or useful catch-up material unavailable | Published-but-unacknowledged with stop reason | Stop automatic Welcome retries; preserve bounded evidence and uncertainty |
+| Joiner | User wants to leave after successful join | Retain join fact; start authorized existing departure flow | SelfRemove subject to admin prerequisites, or independently authorized exact-leaf removal; no refusal proof |
+| Sponsor / cleanup actor | Fresh reconciliation with original-joiner proof establishes durable refusal, including lost init material | Record durable admission terminality, separate cleanup-needed fact | Authorized sponsor/admin cleanup of exact still-current leaf |
+| Sponsor | Peer claims full state loss and cannot prove original-joiner identity | Retain uncertainty; account equality alone proves no terminal fact | Explicit separately authorized removal if user chooses; no automatic failure cleanup |
+| Each observer locally | Cleanup is published/selected | Record branch-relative removal evidence | Re-evaluate eligibility and cap before another enrollment |
+| Each observer locally | Enrollment loses current selection but remains eligible | Record not-selected/retry-blocked, retain recovery state | No replacement Add merely because this pass was lost |
+| Each observer locally | Old branch becomes permanently ineligible under core rules | Record evidence and retire obsolete attempt safely | Fresh approved session/package; explicit discard/rejoin if locally retained |
+| Each observer locally | Old branch revives | Recompute exact usable membership and obligations from that branch | Resume only if keys/lineage are usable; otherwise explicit stale-leaf cleanup/recovery |
+| Joiner; sponsor on authenticated evidence | Group discarded/deleted, leaf removed, or record invalidated | Revoke pending ack authority for that lineage | No replay ack; fresh authorized recovery where available |
+
+Rows describing both peers are separate local transitions linked by authenticated messages, not shared storage. A
+sponsor's definitely-not-exposed fact is not observable from silence at the joiner; a joiner's refusal is not observable
+from a missing ack at the sponsor.
 
 - [ ] Select Welcome authorization by durable KeyPackage purpose, never just intent liveness. Enrollment-only packages
-  route to the same-account checks or rejection in approved/expired/cancelled/superseded/invalidated states. Ordinary
-  admin packages retain their independent path.
-- [ ] Validate exact group, package reference, sponsor account and leaf signature key, intent deadline, proofs, required
-  component and every resulting-state invariant before any visible group or package mutation. Invalid Welcomes leave
+  route to the same-account checks or rejection in every state, including after exposure-deadline expiry, cancellation,
+  supersession or invalidation. Ordinary admin packages retain their independent path.
+- [ ] Validate exact group, package reference, sponsor account and leaf signature key, durable approval/admission state,
+  proofs, required component and every resulting-state invariant before any visible group or package mutation. Invalid Welcomes leave
   both group and consumable KeyPackage state untouched.
 - [ ] Make byte-identical duplicate-Welcome acknowledgement recovery mandatory for implementations advertising this
   feature. Preserve the joined-Welcome digest and exact correlation independently of the consumed init key.
+- [ ] Coalesce duplicates while an initial or recovery ack is pending. After initial publication, allow at most one fresh
+  recovery ack per `(attempt, branch identity, MLS epoch)` with currently authorized lineage. Persist the budget claim
+  and exact ack bytes atomically before exposure, including across restart and branch reselection; identical relay
+  redelivery cannot reset it or create fresh work. Use finite exact-byte publication retries within that obligation's
+  original budget. A later epoch may allow one new recovery ack, not one per Welcome delivery. Test repeated multi-relay
+  replays before/after initial publication, budget exhaustion, restart and branch return.
 - [ ] Define acknowledgement verification at the actual MLS sender: exact added leaf or uninterrupted self-update
   descendant, correct branch and all enrollment fields. Another leaf with the same account or a later Remove/Add is
-  insufficient. A bare reusable leaf index is not a lineage identifier.
+  insufficient. A bare reusable leaf index is not a lineage identifier. Existing Leaving/removed send prohibitions still
+  apply; ack recovery never blocks an otherwise authorized departure or permits application traffic while Leaving.
 - [ ] Define the ack-first gate as durable outbound scheduling/publication obligation, not receipt by the sponsor, which
   the joiner cannot observe. Choose and document the existing transport's required publication confirmation boundary;
   retain exact retry material after ambiguous publication. Continue receiving/catching up while blocked. Do not wait
   forever for an unspecified ack-of-ack or silently send chat first.
-- [ ] Add a sponsor scheduling margin without claiming guaranteed delivery. Proposed local pilot default: do not begin
-  an unexposed Add with less than 120 seconds remaining on the approved deadline; recheck before first exposure. Validate
-  that default with platform/signer/delivery measurements and clock policy. Never extend a signed intent in place.
+- [ ] Define the signed intent deadline as the latest sponsor first-exposure time. Proposed local pilot default: five
+  minutes from intent creation, with at least 120 seconds remaining both when staging an unexposed Add and immediately
+  before first exposure. Validate these defaults with platform/signer/delivery measurements and clock policy. Never
+  extend a signed intent in place. A delayed first Welcome may join after that deadline if the approval is uncancelled,
+  the package secret remains available and all other admission checks pass. The joiner cannot independently prove when
+  the sponsor exposed the Add; this remains part of sponsor trust, not a wall-clock consensus rule.
 - [ ] Keep the existing approximately 1/2/4/8-minute Welcome retries and 30-minute automatic-retry ceiling as local
-  guidance. Clamp attempts to useful lifecycle conditions; expiry alone cannot distinguish late first join from replay
-  after success. Missing ack never authorizes deletion. Always report retained uncertainty after stopping automatic work.
+  guidance from first exposure. Before each retry, check whether the Welcome's Add epoch still has a usable catch-up
+  path to the selected branch within the core retained-history and transport availability rules. Stop and report
+  `catch-up-unavailable` when required material is no longer available; do not extend cryptographic retention to keep
+  retries alive. Crossing the local retained anchor is not alone proof that catch-up is impossible if a complete usable
+  Commit chain is still retrievable. Unknown availability is reported as uncertain, not as guaranteed catch-up. Deadline
+  expiry alone does not stop a useful retry or prove failure; missing ack never authorizes deletion or a replacement Add.
+- [ ] Set bounded package-secret retention separately from the exposure deadline, covering the approved deadline plus
+  the 30-minute retry ceiling and 120-second delivery margin in the pilot. Explicit cancellation or unrecoverable key
+  loss can end admission earlier. Warn before cancelling after receipt: the sponsor may already have published, leaving
+  a stranded leaf that consumes a cap slot until separately authorized cleanup. Retention expiry also preserves this
+  uncertainty and rejection metadata; it is not remote removal evidence.
 - [ ] Specify fresh-pairing reconciliation from D5. A terminal refusal is irrevocable for that attempt, bound to the exact
   correlation and original joining signer, and retained before acknowledgement of refusal. First join and refusal share
   one atomic decision boundary. Missing original-signer proof cannot be repaired by an account-level signature alone.
@@ -299,13 +355,18 @@ encoding for reconciliation, state diagram/table, and vectors. An incomplete neg
 **Files:** affected indexes/registry and conformance fixture location agreed with MDK; proposed LAN owner if selected.
 **Consumes:** P1–P4. **Produces:** one pinned implementation baseline with machine-readable byte fixtures.
 
-- [ ] Publish descriptor, Hello, both kind-453 proofs, key schedule, AEAD/AAD, control records, receipt, catalog/selection/
-  package/intent batches, reconciliation, and kind-452 ack fixtures. Preserve unsigned-inner-ack semantics; do not turn it
-  into an account-signed proof that any sibling could generate.
+- [ ] Publish descriptor, Hello, kind-453 role proofs and full-transcript approval, key schedule, AEAD/AAD, control records,
+  receipt, catalog/selection/package/intent batches, reconciliation, and newly allocated ack-kind fixtures. Preserve
+  unsigned-inner-ack semantics; do not turn it into an account-signed proof that any sibling could generate.
 - [ ] Provide canonical bytes, decoded interpretation, expected hash/signature/decryption result and rejection reason for
   each positive/negative fixture. Include complete transcript traces, not only an isolated HKDF vector.
 - [ ] Check candidate identifiers for collisions at adoption. Update registry, owning documents, surface indexes, layout,
   maturity labels and withdrawn-ID handling together. Allocate a new version for incompatible deployed behavior.
+- [ ] Allocate a fresh kind for the MLS-carried enrollment ack; never reuse `452`. Complete P1's withdrawal of the old
+  multi-device draft in the same adoption change: retain `0x800a`, `452`, `0xf2f0` and `0xf2ef` as withdrawn/reserved with
+  their historical meanings, and remove live External Commit/join-PSK/group-event-key-transfer instructions from the
+  feature/component owners. Keep kind `452` classified as a non-published local signing template. Add a fixture/registry
+  check that rejects interpreting its old signed proof as the new unsigned MLS ack, and resolves every old reference.
 - [ ] Resolve carrier ownership/profile, even if the first pilot is single-family. Opaque hints have no inherent device,
   endpoint-safety, group-membership, or consensus authority.
 - [ ] Obtain a second implementation's decoding and state-machine review. Review sponsor trust and lack of parent-Commit

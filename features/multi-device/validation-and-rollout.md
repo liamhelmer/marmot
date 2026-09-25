@@ -24,15 +24,16 @@ production timing. A simulator case passing under instant settlement is not evid
 
 | ID | Stimulus | Required result | Owner |
 | --- | --- | --- | --- |
-| W01 | Catalog/selection with 0, 1, 32 and 33 entries; package/intent batches with 0, 1, 32 and 33 | Empty final catalog/selection accepted; empty package/intent and all 33-entry batches rejected | P2/M7 |
+| W01 | Catalog/selection with 0, 1, 32 and 33 entries; empty final and non-final catalog; package/intent batches with 0, 1, 32 and 33 | Empty catalog accepted only as its sole final batch; empty non-final catalog, empty package/intent and all 33-entry batches rejected; empty final selection accepted | P2/M7 |
 | W02 | Minimum valid intent, non-shortest prefix, truncated field, trailing bytes, integer overflow | Valid intent fits corrected vector; malformed encodings reject identically | P2/M7 |
 | W03 | Duplicate group/batch/hash, noncatalog selection, package for another group | Reject or apply exactly the defined idempotency rule; never silently change approved meaning | P2/M7 |
-| W04 | Correct descriptor, Hello, proofs and key schedule; alter either role/account/session/transcript | Match byte fixtures; altered binding rejects before catalog disclosure | P2/M7 |
+| W04 | Correct descriptor, Hello, proofs and full-transcript approval; swap sponsor/joiner proofs or alter role/account/session/version/nonce or DH key in each supported channel option | Match byte fixtures; reflected/altered binding rejects at its verification stage before protected controls are accepted | P2/M7 |
 | W05 | Alter AAD length/direction/flags/type, tag or ciphertext | Authentication/canonical validation fails; no allocation or application side effect from unauthenticated input | P2/M7 |
 | W06 | Chunk reordering, identical overlap, conflicting overlap, missing bytes and oversized object | Bounded assembly; exact duplicates harmless; conflict/overflow rejects; incomplete object never decoded | M7 |
 | W07 | Receipt before durable approval, foreign-session hash, duplicate receipt, 33 hashes | No unauthorized Add; valid repeated receipt is idempotent; bounds enforce | P2/M4/M6 |
+| W08 | QR-capture attacker relays honest Hello, substitutes an old valid same-account KeyPackage with known private key, or forges approval/intent/receipt | No substituted Add or forged approval; unmodified PSK-only fails this case and cannot pass D1/G1; account/endpoint compromise documented separately | D1/P2/M7 |
 | C01 | Same sequence and same bytes; same sequence different bytes; sequence exhaustion | Ignore duplicate without repeating effects; conflict/exhaustion terminates; never reuse nonce | M7 |
-| C02 | Catalog arrives before approval, then approval; approval never arrives | Bounded deferred processing once; timeout releases channel memory and publishes no Add | P2/M7 |
+| C02 | One maximum 65,536-byte plaintext catalog record plus tag/framing/metadata arrives before approval; then approval or no approval; multiple records overflow | One maximum encoded record fits the 128 KiB budget and processes once after verified approval; approval can progress when buffering is full; overflow/timeout releases memory with no Add | P2/M7 |
 | C03 | Lost receipt, duplicate object retransmission, channel disconnect during a batch | Exact retry or fresh authenticated reconciliation; no duplicate Add | M6/M7 |
 | C04 | Wall time moves backward while monotonic elapsed TTL passes | Session expires; signed/display timestamp does not extend lifetime | M7 |
 | C05 | Signer refuses, returns altered template/wrong author, replies after expiry or after account switch | Typed refusal/invalid/stale result; no approval, leaked catalog or cross-account mutation | M7 |
@@ -45,7 +46,7 @@ production timing. A simulator case passing under instant settlement is not evid
 | ID | Stimulus | Required result | Owner |
 | --- | --- | --- | --- |
 | U01 | Enabled parent, non-admin valid one-Add with required path | Accept, ordinary priority; exact same-account proof validated | P3/M2 |
-| U02 | Identical valid narrow shape authored by admin | Accept with ordinary priority | P3/M2 |
+| U02 | Admin narrow Add/Remove also passes baseline admin rules; same authorized removal expressed by reference or with another baseline-valid operation | All receive privileged priority; no padding needed; same result on send/ingest/replay; self-update/SelfRemove retain dedicated rules | P3/M2 |
 | U03 | Non-admin wrong account, referenced Add/Remove or mixed operation | Reject same-account authority; no broad fallback | P3/M2 |
 | U04 | Admin removes own sibling and another account's leaf in a baseline-valid mixed removal | Ordinary admin authority accepted with privileged priority | P3/M2 |
 | U05 | Missing path; duplicate key/package; duplicate/self/noncurrent removal target | Reject consistently in send, ingest and replay | M2/M3 |
@@ -68,16 +69,20 @@ production timing. A simulator case passing under instant settlement is not evid
 | ID | Stimulus | Required result | Owner |
 | --- | --- | --- | --- |
 | E01 | Valid approved attempt and matching first Welcome | Atomically join and persist ack obligation; no prior chat/self-update | M4/M5 |
-| E02 | Admin sponsor, expired/cancelled/superseded enrollment intent | Enrollment-purpose rejection; never ordinary admin fallback | M4/M5 |
+| E02 | Admin sponsor, cancelled/superseded attempt or retired package secret; separately exposure deadline alone has passed | Terminal attempt rejects; still-approved late Welcome follows E08; neither case falls back to ordinary admin admission | M4/M5 |
 | E03 | Wrong sponsor leaf key, group, account, package, component or proof | Reject without consuming valid package or mutating group | M5 |
-| E04 | Valid late duplicate after successful join and package consumption | Recognize exact bytes before expiry/dedup; fresh ack without reprocessing MLS | M5 |
+| E04 | Valid late duplicate after successful join and package consumption | Recognize exact bytes before dedup; coalesce pending work or claim one recovery ack per attempt/branch/epoch without reprocessing MLS | M5 |
 | E05 | Same package reference with changed Welcome/GroupInfo bytes | Reject; preserve legitimate joined record and state | M5 |
 | E06 | Post-join maintenance immediately due; ack publish fails | Retain ack obligation and own outbound gate; ingress/backfill remain live | M5 |
 | E07 | Join succeeds but all acks are lost | Sponsor retains published-unacknowledged; no automatic Remove/Add | M6 |
-| E08 | First Welcome delayed beyond expiry; no negative evidence reaches sponsor | Joiner rejects; sponsor cannot declare remote failure from silence | P4/M6 |
+| E08 | First Welcome after exposure deadline, approval uncancelled and secret retained; contrast cancellation/secret retirement before delivery | First joins and records ack; second rejects with retained terminal metadata; absent ack never proves either outcome to sponsor | P4/M5/M6 |
 | E09 | Fresh authenticated reconciliation proves durable refusal/key loss | Exact attempt becomes terminal; authorized cleanup is separate and branch-relative | P4/M6 |
 | E10 | First-join transaction races cancellation/refusal and duplicate delivery | Exactly one durable admission outcome; no contradictory success/refusal facts | M4–M6 |
 | E11 | Different same-account device claims refusal; original joiner lost signer; old refusal replayed in new session | No terminal inference without original-joiner key proof bound to fresh challenge; uncertainty or separate explicit removal | P4/M6 |
+| E12 | Many byte-identical Welcomes across relays before/after initial ack, after recovery ack, after restart and branch reselection; then a new epoch | One pending obligation coalesces duplicates; at most one fresh recovery ack per attempt/branch/epoch with finite exact-byte retries; budget survives restart/return; new epoch requires valid lineage | P4/M5 |
+| E13 | Joined non-admin cancels, then joined active-admin cancels; ack still pending or already published | Preserve join fact; non-admin uses SelfRemove without refusal exchange; admin follows existing prerequisites or authorized removal; Leaving blocks ack traffic under existing rules | P4/M6 |
+| E14 | Routine sponsor self-update becomes due between intent creation, approval, receipt and first exposure; restart; urgent rotation changes key | Routine maintenance waits until exposure/safe retirement; hold survives restart and expires with unexposed intent; urgent/key-changing update requires fresh approval | M6 |
+| E15 | Group advances beyond Welcome catch-up availability before retry; contrast a complete usable chain still retrievable beyond local anchor and unknown availability | Missing required material stops with catch-up-unavailable; ceiling stops with retry-budget-exhausted; unknown availability stays uncertain; no retention extension, removal or replacement inference | P4/M6 |
 | R01 | Enrollment loses one convergence pass, remains inside horizon | Not-selected/retry-blocked, not permanently failed; preserve exact recovery facts | M6 |
 | R02 | Losing enrollment later revives with keys retained | Re-evaluate exact membership/ack obligations; no duplicate leaf | M6 |
 | R03 | Previously retired/discarded enrollment branch revives without keys | Report unusable stale leaf, no false completion; explicit authorized cleanup/rejoin | M6 |
@@ -97,7 +102,7 @@ external side effect. Reopen persistent storage, repeat the input, and compare t
 | B3 | Sponsor records receipt and staged exact Commit before publication | No Add without receipt; one durable attempt and exact retry bytes |
 | B4 | First exposure / partial fanout / ambiguous acknowledgement | No newly generated replacement Add; exposure is not forgotten |
 | B5 | Welcome validation, package consumption and group persistence | Invalid join changes nothing; valid join retains exact digests and ack obligation |
-| B6 | Ack publication and own-maintenance gate release | No premature self-update/chat; exact ambiguous retry remains possible |
+| B6 | Ack publication, recovery-budget claim with exact bytes, and own-maintenance gate release | No premature self-update/chat; exact ambiguous retry remains possible within finite budget; duplicate/restart never resets recovery allowance |
 | B7 | Verified sponsor ack and selected-membership update | Completion is durable, but later branch loss remains representable |
 | B8 | Terminal refusal, cleanup exposure, secret erasure and safe metadata compaction | Refusal cannot later join; cleanup scope persists; erased state does not authorize fallback/replay |
 
@@ -111,7 +116,7 @@ They must not assert that physical-device cloning can always be detected from ML
 | X01 | Supported import/restore attempts to activate copied live MLS state as a second device | Refuse that import mode; create fresh device keys/state and require normal admission | M4/M8 |
 | X02 | Attempt a second local writer; separately run an adversarial copy on another machine | Local lock prevents supported concurrent local access; documentation/test shows it is not a remote clone detector | M4/V1 |
 | X03 | Two adversarial clients share one leaf; send both conflicting-generation and otherwise-valid messages/acks | Ordinary MLS replay/ratchet checks remain; valid cloned-leaf traffic may authenticate as that leaf; do not invent physical attribution | M3/V1 |
-| X04 | Healthy distinct sibling/admin removes the compromised shared leaf, then clean clients enroll afresh | Both copies lose that membership on the selected branch; fresh leaves/keys are distinct; branch-revival and account-key compromise limits remain explicit | M3/M6/V1 |
+| X04 | Healthy sibling/admin removes compromised shared leaf while attacker races a sibling Remove; then clean clients enroll after selected removal | Highest independently valid authority sets priority without padding; same admin-account siblings both have admin authority, so no guaranteed healthy winner; selected removal removes both clones; replacements use fresh keys | M3/M6/V1 |
 
 Reject a duplicate signature key in a proposed new leaf independently of X03: cloning an existing leaf has no Add event
 to validate. Do not claim that every clone send repeats the exact nonce; retain MLS reuse-guard behavior while testing
@@ -129,7 +134,7 @@ peer-side rejection separately from joiner reliance on sponsor-attested state, a
 | I05 | Welcome on subset of inbox relays; canonical invite returns before fanout | Durable per-recipient transport outcomes; background delivery proceeds |
 | I06 | Remove A's leaf while B retains membership/push registration | Correct A departure evidence; B's notifications and group remain usable |
 | F01 | Read status after restart or late subscription | Stable attempt reference and all durable facts/allowed actions reconstructed |
-| F02 | Cancel before exposure, after ambiguous exposure and after join | Finite typed result; retain necessary reconciliation; no false rollback |
+| F02 | Cancel before exposure, after receipt/ambiguous exposure and after join | Warn that post-receipt cancellation may strand a cap-consuming leaf; finite typed result, retained reconciliation, authorized departure after join, no false rollback |
 | F03 | Pair into mixed enabled/disabled/unsupported groups | Per-group eligibility/partial results; no automatic feature enablement or eviction |
 | F04 | Joined device opens chat and enrollment ack arrives | Ack hidden from timeline/unread/notifications; history absence explained |
 | F05 | Swift/Kotlin/C calls remove-device and remove-account | Distinct scope and stale-target result survive binding conversion |
@@ -201,7 +206,7 @@ to each implementation PR. Do not describe isolated reruns as a clean first full
 | Authenticated device directory and all-device first contact | Device/slot authentication, revocation, replacement, expiry, privacy and deterministic cap overflow; resolve #1696 Phase 2 explicitly |
 | Account-wide invitation notice/fallback | Defined authenticated notice, privacy and replay model; cannot silently cause alternate-device Adds |
 | Account-wide compromise recovery | Authority rotation and cross-group evidence; no global completion claim from this per-group feature |
-| Authenticated-DH channel version | Bind both keys and full transcript, platform evidence, independent review and new version if incompatible |
+| Later channel versions | D1 already recommends authenticated DH for initial adoption; any later incompatible construction needs a new version, full-transcript authentication, platform evidence and independent review |
 | History/content bootstrap (#1277) | Separate forward-secret transfer envelope, per-group consent, provenance, count/time/byte bounds, retention and deletion semantics; no MLS state import |
 | Offline account archive (#1769) | Versioned encrypted portable data, authenticated atomic staging/import and fresh device state; unsupported groups remain history-only/reinvite-required |
 | Continuous sync/journals/mesh | Application records only; no `(epoch,timestamp)` merge becomes MLS authority; preserve exporter provenance and erasure policy |
@@ -220,3 +225,7 @@ to each implementation PR. Do not describe isolated reruns as a clean first full
   authenticated ack provenance; earlier approval ordering; admin precedence; scoped LAN policy; incomplete reachability.
 - [ ] Discussion objections covered: PSK evidence, cap measurements, invitation notice/directory alternative; stale MDK
   baseline and open issues; closed #1282/#251 status; cleanup/outcome companion trackers; deferred history/archive work.
+- [ ] Opus review items 1–13 covered: active QR substitution (W08/D1); role reflection (W04); authority priority (U02/X04);
+  replay amplification (E12/B6); fresh ack kind and explicit legacy withdrawal (P1/P5); late admission/cancellation (E08/F02);
+  post-join SelfRemove with admin constraints (E13); sponsor maintenance hold (E14); maximum early record (C02);
+  useful Welcome retry bound (E15); actor-local transition rows (P4); empty non-final catalog rejection (W01).

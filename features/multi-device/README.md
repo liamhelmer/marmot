@@ -42,10 +42,12 @@ work. Do not interpret a checked-in plan, an approved review, or a merged docume
 
 - Each account-device owns independent MLS signer/state, KeyPackage private material, and sender ratchets. Never clone
   a SQLCipher/OpenMLS store, live or historical epoch secrets, pending MLS operations, or ratchets onto another device.
-- Use same-account inline Add/Remove authorization. Do not revive the withdrawn External Commit, join-PSK, transferred
-  group-event-key, or `0x800a` authorization path. Withdrawn wire values remain withdrawn.
-- Treat `0x800d`, kind `452`, kind `453`, and new pairing record numbers as candidate assignments from #417 until the
-  registry and amended owning documents agree. No implementation silently reinterprets already deployed values.
+- Use same-account inline Add/Remove authorization. The External Commit, join-PSK, transferred group-event-key and
+  `0x800a` path is superseded by this plan, but remains a live draft on the pinned master. P1/P5 must explicitly withdraw
+  it in the owning documents and registry before adoption. Withdrawn wire values remain reserved and never reassigned.
+- Treat `0x800d`, kind `453`, and new pairing record numbers as candidate assignments from #417 until the registry and
+  amended owning documents agree. Kind `452` is already allocated to the old local join-authorization proof; the
+  MLS-carried enrollment ack requires a new, collision-free kind. No implementation silently reinterprets old values.
 - The starting v1 recommendation is one inline Add per Commit, one to four sibling Removes per Commit, and at most five
   leaves per account while enabled. D2 evaluates the cap before freezing it; do not independently choose a different
   cap in a client. A changed cap also requires review of all related bounds and fixtures.
@@ -76,12 +78,12 @@ Review history is not consensus by implication. [D1–D6](protocol-plan.md#decis
 
 | ID | Decision | Starting recommendation | Completion evidence |
 | --- | --- | --- | --- |
-| D1 | Pairing forward secrecy | PSK-only enrollment control channel for v1; authenticated DH for a separately reviewed version | Platform/library/size evidence, threat model, payload exclusions, security review response |
+| D1 | Pairing authentication and forward secrecy | Authenticated ephemeral DH; unmodified PSK-only fails the active QR-capture case | Platform/library/size evidence, transcript binding, active substitution tests, payload exclusions, security review response |
 | D2 | Per-account leaf cap | Keep five provisionally | Measurements at 1/2/5/16 leaves; resource and abuse analysis; explicit cap decision |
 | D3 | Initial invitation reachability | One compatible selected KeyPackage; preserve and expose uncertainty | Documented limitation and recovery UX; separate directory/notice proposal instead of promising #417 solves it |
 | D4 | Carrier interoperability | One specified LAN profile, if safe/platform-feasible | Two implementations or explicit single-family pilot; pairing-specific destination policy |
 | D5 | Lost/expired enrollment and branch revival | Retain uncertainty; no destructive timeout inference; wait for permanent ineligibility before replacement | Exact transition table, durable reconciliation, adversarial traces |
-| D6 | Admin authorization precedence | Narrow valid same-account operations are ordinary; other valid admin operations retain admin authority | Cross-surface authorization matrix and matched ingest/replay fixtures |
+| D6 | Admin authorization precedence | Highest priority granted by independently valid authority; admin membership changes remain privileged even in narrow form | Cross-surface authorization matrix and matched ingest/replay fixtures |
 
 If D1 or D2 changes the recommendation, update the whole plan and proposal fixtures together before adoption. Do not
 ship incompatible interpretations under one version while calling the difference a client preference.

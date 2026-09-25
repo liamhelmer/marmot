@@ -76,9 +76,10 @@ capability handling and disband validation; proposed focused `same_account_membe
 
 - [ ] Implement a single classifier taking the candidate parent, validated committer, proposal provenance and complete
   resulting state. Return authority and convergence priority together to prevent independent decisions drifting.
-- [ ] Preserve baseline self-update/SelfRemove and ordinary admin operations. Match the exact enabled same-account
-  shapes first with ordinary priority even for an admin; then evaluate independently authorized admin shapes. Invalid
-  MLS/proofs/resulting state fail regardless of actor. Do not classify all mixed/admin operations as component failures.
+- [ ] Preserve baseline self-update/SelfRemove rules. Evaluate all applicable same-account and admin membership authority
+  against the candidate parent, returning the highest independently valid priority. A valid admin narrow Add/Remove is
+  privileged without padding or referenced proposals. Invalid MLS/proofs/resulting state fail regardless of actor; admin
+  status alone does not elevate self-update/SelfRemove or authorize a shape baseline admin rules prohibit.
 - [ ] Run resulting-state integrity checks for every locally generated Commit, including invitation without admin grants,
   removal, self-update, capability updates and disband-related paths. Add the new invariant hook to all receive/replay paths.
 - [ ] Register `0x800d` as known and data-less, reject data entries in every location and validate support/required lists
@@ -128,7 +129,8 @@ outcomes. **Commit boundary:** trait/storage/API support and engine validation, 
 - [ ] Create an enrollment-package builder that does not call `mark_as_last_resort`. Atomically store OpenMLS private
   bundle and enrollment-only purpose before returning public bytes. The normal relay generator remains separate.
 - [ ] Keep consumed package purpose/rejection metadata after secret retirement. Missing approved intent, cancellation,
-  expiry, supersession or invalidation never selects the ordinary admin Welcome path.
+  exposure-deadline expiry, supersession or invalidation never selects the ordinary admin Welcome path. Deadline expiry
+  alone leaves approved admission live while secrets remain; retain them under P4's separate bounded lifetime.
 - [ ] Implement transactional first-join versus terminal-refusal decisions. A durable successful join cannot later be
   declared never joined; a durable refusal cannot later admit that attempt. Serialize competing user/network actions.
 - [ ] Make storage migrations additive and fail closed. Existing ordinary packages retain their existing meaning;
@@ -157,12 +159,16 @@ outcomes. **Commit boundary:** trait/storage/API support and engine validation, 
   obligation atomically. A crash cannot leave joined state without work that produces the required first payload.
 - [ ] Gate own-leaf maintenance/self-update and other outbound application traffic until the ack reaches the defined
   publication boundary. Do not block ingress, transport backfill or read-only UI; surface pending publication explicitly.
-- [ ] Retry exact exposed ack message bytes while publication is ambiguous. After a later duplicate Welcome triggers
-  recovery, generate a fresh MLS-protected ack from a valid current lineage while preserving correlation fields.
-- [ ] Check lineage/record validity at each recovery attempt. Removed, discarded, invalidated or Remove/Add-replaced
-  leaves send no ack. Rejoin does not resurrect old ack obligations.
-- [ ] Test E01–E10, A04–A07 and B5–B7 with maintenance due immediately, expired first delivery, successful replay after
-  expiry, lost init key after success, wrong sponsor key, invalid Welcome rollback and signer/transport refusal.
+- [ ] Retry exact exposed ack bytes within the finite publication budget while publication is ambiguous; duplicates
+  coalesce with pending work. After initial publication, generate at most one fresh recovery ack per attempt/branch/epoch
+  from valid current lineage, preserving correlation. Atomically persist its budget claim and exact bytes before exposure;
+  replay storms, restart and branch reselection never reset the budget or extend its retries. Further identical Welcomes
+  are recognized without sending another ack until a new authorized epoch permits recovery.
+- [ ] Check lineage/record validity and existing send gates at each recovery attempt. Leaving, removed, discarded,
+  invalidated or Remove/Add-replaced leaves send no ack. Rejoin does not resurrect old ack obligations.
+- [ ] Test E01–E13, A04–A07 and B5–B7 with maintenance due immediately, delayed first delivery after exposure deadline,
+  cancellation/secret-retirement rejection, replay storms, lost init key after success, wrong sponsor key, invalid Welcome
+  rollback and signer/transport refusal.
 
 **Verification:** targeted engine and app/session integration tests; no broad relaxation of `WelcomeAlreadyProcessed`.
 **Commit boundary:** routing/atomic join, followed by ack scheduling/replay where reviewers can verify each invariant.
@@ -177,8 +183,18 @@ outcomes. **Commit boundary:** trait/storage/API support and engine validation, 
   completion predicate. Require exact added lineage, local key usability and current selected membership evidence.
 - [ ] Stage no Add until its receipt is durably observed. Check approved deadline/margin and fresh parent before first
   exposure; if the sponsor signature key changed since approval, obtain a new approved intent instead of rewriting it.
+- [ ] Hold routine sponsor own-leaf maintenance from creating the leaf-bound intent through first Add exposure or safe
+  unexposed retirement, including approved attempts awaiting a receipt. Persist/reconstruct the hold after restart and
+  bound it by the signed exposure deadline; continue ingress/catch-up. Release it after exposure or safe cancellation.
+  A security-driven update or independently changed sponsor key still invalidates unexposed approval and requires a
+  fresh intent; never suppress urgent rotation or silently rewrite the binding. Test E14 at each scheduling boundary.
 - [ ] Preserve publish-before-apply for Adds and Removes. Treat any possible external exposure as requiring exact-byte
   reconciliation; a network timeout is not proof rollback is safe. Background Welcome delivery remains durable.
+- [ ] Before every exact Welcome retry, evaluate P4's useful catch-up conditions from retained history and transport
+  evidence. Stop with `catch-up-unavailable` if the required path/material is gone, or `retry-budget-exhausted` at the
+  30-minute ceiling; report uncertainty separately when availability is unknown. Neither stopping condition proves the
+  joiner failed, frees a leaf slot, authorizes replacement, or extends retention. Cover advancing epochs and
+  still-retrievable chains in E15.
 - [ ] Limit one active attempt per group. Start with sequential Add publication; if parallelizing across groups, use a
   bounded local queue, initially at most four publishers. Partial success is per group, never a cross-group rollback.
 - [ ] Expose independent statuses for approved, awaiting receipt, publication pending/uncertain, locally joined, ack
@@ -197,7 +213,9 @@ outcomes. **Commit boundary:** trait/storage/API support and engine validation, 
 - [ ] Handle explicit retained-group discard/rejoin through the established boundary. Preserve accepted history under
   its provenance/retention policy without copying cryptographic state. Never manufacture a secret-free replay mechanism.
 - [ ] Define cancel behavior before exposure, after ambiguous exposure and after join. Cancellation ends new user work,
-  not existing remote facts; retain necessary obligations and allow bounded later reconciliation.
+  not existing remote facts; retain necessary obligations and allow bounded later reconciliation. Once joined, use
+  existing SelfRemove when authorized (including admin departure prerequisites), or separately authorized exact-leaf
+  removal if needed. Never emit a never-joined refusal proof after successful admission.
 - [ ] Test concurrent enrollment near the cap, concurrent cleanup, sponsor removal, uncertain publication, branch loss/
   revival, group deletion, cancellation and repeated restart. Persist seed and trace for each failure.
 
@@ -214,18 +232,23 @@ carrier-specific module/crate chosen after D4; dial-safety docs and local artifa
   terminal key erasure and fail-closed restart. Port to the current runtime boundary and #417's sponsor-displayed QR;
   do not import its old DH payload or engine ownership assumptions wholesale.
 - [ ] Implement canonical descriptor/Hello/proof/record/object codecs against fixtures. Verify exact kind-453 signer
-  templates, account identity, event ID/fields/signature and refusal/late-response behavior through existing signer
-  abstractions. Key schedule/AAD must match vectors byte-for-byte.
+  domains/roles, account identity, event ID/fields/signature and transcript at each stage, including post-Hello approval.
+  Enforce D1's key authentication and active QR-capture defenses through existing signer abstractions. Test reflected
+  proofs, refused/late callbacks and substituted package/receipt fields; key schedule/AAD must match vectors byte-for-byte.
 - [ ] Support one active channel per account-device runtime; a new local session supersedes the previous local channel.
   Do not claim globally one session per account without a shared directory. Destroy secret/sequence state on restart;
   fresh pairing reconciles durable enrollment without resuming old encryption nonces.
 - [ ] Implement approval ordering and intent receipts from P2, including authenticated records arriving before approval.
   Maintain distinct replay-admission and deferred-application states so buffered valid records are eventually processed.
 - [ ] Bound plaintext to 65,536 bytes/record and each complete object to 16 MiB. Proposed initial local budgets: at most
-  four live reassembly objects, 32 MiB aggregate buffered object bytes, 64 KiB pre-approval buffer, and 65,536 accepted
+  four live reassembly objects, 32 MiB aggregate buffered object bytes, 128 KiB pre-approval buffer, and 65,536 accepted
   record sequence entries per session. Overflow closes/restarts the channel with a typed resource result and preserves
   enrollment obligations. Record these as local pilot limits; negotiate or standardize any interoperability minimum
-  explicitly instead of silently changing wire validity. Load-test maximum objects sequentially and concurrently.
+  explicitly instead of silently changing wire validity. Charge ciphertext, AEAD tag and retained framing/replay metadata
+  to the pre-approval budget; P2/D4's maximum encoded record plus retained metadata must fit. ChaCha20-Poly1305 alone needs
+  65,552 bytes for a maximum plaintext and its 16-byte tag. Keep approval processing able to make progress when early
+  catalog buffering is full. Test one maximum early record then approval, and typed overflow with multiple records.
+  Load-test maximum objects sequentially and concurrently; revise this budget if D1/D4 changes the overhead.
 - [ ] Reject impossible lengths before allocation; validate offset arithmetic, identical/conflicting overlaps, completion
   hash, object type, batch membership, flags and direction. Retain enough replay evidence to detect conflicting ciphertext;
   if the replay budget is exhausted, terminate rather than evicting evidence and accepting sequence reuse.
@@ -258,6 +281,9 @@ client feature code in their own repositories. **Consumes:** M1–M7. **Produces
 - [ ] Render partial enrollment per group and distinguish transport delivery from authenticated join and selected
   membership. Display deadline/signer/network/resource limitations and a safe retry/reconcile action. Do not label a
   merely published Add as a completed device link.
+- [ ] Explain the exposure deadline separately from delayed Welcome admission. Before cancelling after a receipt, warn
+  that publication may already have happened: cancellation can leave a stranded leaf occupying a slot until authorized
+  cleanup. Expose retry stops caused by unavailable catch-up history separately from proven refusal or removal.
 - [ ] Render removal as “this device in this group” or “this account in this group.” Bulk per-group progress may be a
   later orchestration UI, but v1 never promises removed everywhere or rotated account-wide authority.
 - [ ] Explain shared-leaf compromise accurately: deleting the shared leaf removes both physical copies on the selected

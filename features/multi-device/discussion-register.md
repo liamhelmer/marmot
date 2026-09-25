@@ -65,6 +65,27 @@ reviews and do not establish maintainer consensus.
 | [Marmot #81 push-token collision](https://github.com/marmot-protocol/marmot/issues/81#issuecomment-4871800075) | Closed fixed June 29 | Existing canonical token key includes leaf index. Reuse sibling coverage; do not report the old defect as current. |
 | [Marmot #380 retained secrets](https://github.com/marmot-protocol/marmot/issues/380#issuecomment-5038231095) | Closed July 23 | Authenticated retained-branch replay needs private retained material, not just public tree/Commit bytes. Preserve explicit retention/security tradeoffs. |
 
+## Opus action-plan review disposition
+
+Review supplied 2026-09-25 against the six planning files and pinned master above. These are corrections to the plan;
+future implementation cases remain unchecked, and this change neither adopts protocol rules nor withdraws IDs on master.
+
+| Item | Disposition and reason | Work / validation |
+| --- | --- | --- |
+| 1. QR-secret capture and package substitution | Accepted. PSK-only permits active record forgery, not just passive metadata recovery. Recommend authenticated DH and block unmodified PSK-only; a PSK alternative needs independently authenticated commitments under a session-authorized key the QR-only attacker lacks. | D1, P2, M7, W08; threat diagram 3 |
+| 2. Reflected account proofs | Plan clarified; the pinned #417 already has distinct roles and descriptor/joiner-context bindings, so sharing an account key alone does not demonstrate reflection. Preserve exact template checks for both channel options and require staged full-transcript authentication. | D1/P5, M7, W04 |
+| 3. Admin priority by shape | Accepted. Choose the highest independently valid authority so narrow admin membership operations need no padding. Admin authority is account-scoped: a compromised sibling of the same admin account also has privileged authority; no healthy-winner guarantee follows. | D6/P3, M2, U02/X04; diagrams 3/8 |
+| 4. Welcome replay amplification | Accepted. Coalesce pending acks and persist at most one fresh recovery ack per attempt/branch/epoch, with finite exact-byte retries and no reset on restart or branch return. | P4, M5, E04/E12/B6 |
+| 5. Kind 452 collision | Accepted. It remains the old local join-authorization proof kind and must never identify an MLS-carried ack. Allocate a fresh ack kind and retain 452 as withdrawn/reserved at adoption. | P5, registry/fixture consistency check |
+| 6. Legacy draft still live | Accepted. Describe it as superseded by this plan, and explicitly schedule withdrawal of 0x800a, 452, 0xf2f0/0xf2ef and the associated External Commit/join-PSK/key-transfer flow in owners/registry. | P1/P5; overview constraints |
+| 7. Late Welcome and undefined deadline | Accepted with the suggested exposure-only deadline. Five-minute default lifetime with at least 120 seconds remaining at staging/exposure; late admission remains possible while approval and secrets are live. Separate bounded secret retention covers the retry schedule; warn that post-receipt cancellation can strand a leaf. | P4, M4/M6/M8, E08/F02; diagram 6 |
+| 8. SelfRemove after successful join | Accepted with existing authorization constraints. Non-admin joiners can use SelfRemove; active admins require the existing admin-policy prerequisites or an independently authorized removal. Never-joined refusal proofs cannot represent post-join departure. | D5/P4, M6, E13 |
+| 9. Sponsor maintenance invalidates intent | Accepted. Hold routine own-leaf maintenance from intent creation to exposure/safe retirement; reconstruct after restart. Urgent rotation still proceeds with fresh approval for unexposed work. | M6, E14 |
+| 10. Pre-approval buffer too small | Accepted. Budget 128 KiB including ciphertext/tag/framing/metadata and require the maximum encoded record to fit; approval must still progress when early buffering is full. | M7, C02 |
+| 11. Welcome retries and retained history | Qualified fix. Stop retries when required catch-up material is unavailable and report why, without extending retention. An old Welcome does not itself preclude catch-up if a complete usable Commit chain remains retrievable; local anchor age alone is insufficient. | P4/M6, E15 |
+| 12. Mixed observers in transition table | Accepted. Name each actor and distinguish local observations from authenticated cross-peer evidence. | P4 |
+| 13. Empty non-final catalog case | Accepted. Explicitly reject it; the empty catalog is a sole final batch. | P2, W01 |
+
 ## Follow-up discipline
 
 - [ ] Link the final amended proposal and this action plan from relevant trackers when their maintainers accept the scope.
