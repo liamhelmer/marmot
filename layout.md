@@ -74,6 +74,11 @@ as `AGENTS.md`, and compatibility symlinks, are not entries in the normative spe
 a spec document, update this tree in the same change, and update the matching index in the surface's `README.md` (and
 `foundation/registries.md` when an id changes). The subdir `AGENTS.md` files carry this as a verification step.
 
+Non-normative planning material is indexed separately from the spec tree. The
+[multi-device action plan](features/multi-device/README.md) under `features/multi-device/` contains implementation work
+packages, explanatory diagrams, evidence and validation gates; it does not replace `features/multi-device.md` or adopt
+new protocol behavior. Implementation names in that planning directory are not normative surface definitions.
+
 ## Foundation
 
 Foundation documents define shared surfaces:
