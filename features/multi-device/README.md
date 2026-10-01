@@ -36,6 +36,9 @@ keep Rust APIs, storage design, scheduling, and test-runner details in MDK or `i
 6. [Discussion and evidence register](discussion-register.md): agreement, contradictions, historical dispositions, follow-up.
 7. [Review of the multi-device idea at 07da8ff](review-07da8ffbfa7aa6c1e73e8e326085d0c47dc298e7.md): itemized defects,
    concrete exposure scenarios, alternate-plan safeguards and remaining gaps.
+8. [Full-scope review of the same idea](review-full-scope-07da8ff.md): an alternative response to all sixteen findings,
+   with attack scenarios and proposed repairs that retain account-wide linking, device-group merging, invitation fanout,
+   gap filling, history, removal and sign-out. This review does not change this plan's narrower implementation scope.
 
 The plan commit is documentation only. Implementation, upstream spec amendment, tracker updates, and release are future
 work. Do not interpret a checked-in plan, an approved review, or a merged documentation PR as implemented support.
