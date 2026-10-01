@@ -34,6 +34,8 @@ keep Rust APIs, storage design, scheduling, and test-runner details in MDK or `i
 4. [MDK implementation work](mdk-plan.md): tasks M1–M8, source locations, interfaces, persistence, integration.
 5. [Validation and rollout](validation-and-rollout.md): fixture and adversarial cases, commands, gates, pilot and rollback.
 6. [Discussion and evidence register](discussion-register.md): agreement, contradictions, historical dispositions, follow-up.
+7. [Review of the multi-device idea at 07da8ff](review-07da8ffbfa7aa6c1e73e8e326085d0c47dc298e7.md): itemized defects,
+   concrete exposure scenarios, alternate-plan safeguards and remaining gaps.
 
 The plan commit is documentation only. Implementation, upstream spec amendment, tracker updates, and release are future
 work. Do not interpret a checked-in plan, an approved review, or a merged documentation PR as implemented support.
