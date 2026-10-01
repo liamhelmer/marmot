@@ -22,6 +22,11 @@ they used to be described in a MIP. The old-to-new MIP map lives in [../mip-cove
 - [push-notifications.md](./push-notifications.md) - optional native push notification flow.
 - [multi-device.md](./multi-device.md) - branch-draft multi-device support.
 
+## Planning documents
+
+- [Multi-device action plan](./multi-device/README.md) - non-normative protocol/MDK work packages, client-flow and threat
+  diagrams, discussion evidence, validation and rollout gates. This plan does not adopt the draft feature or allocate IDs.
+
 ## Relationship to app components
 
 App components stay in [../app-components/](../app-components/).
